@@ -156,46 +156,8 @@
     }
 
     startAmbientMusic() {
-      if (!this.isInitialized) return;
-      
-      const playNote = (freq, duration, delay = 0) => {
-        setTimeout(() => {
-          const oscillator = this.audioContext.createOscillator();
-          const gainNode = this.audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(this.musicGain);
-          
-          oscillator.frequency.value = freq;
-          oscillator.type = 'sine';
-          
-          gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-          gainNode.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.5);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
-          
-          oscillator.start(this.audioContext.currentTime);
-          oscillator.stop(this.audioContext.currentTime + duration);
-        }, delay);
-      };
-
-      const ambientLoop = () => {
-        // Lower, more energetic bass notes with rhythmic patterns
-        const notes = [55, 73.42, 82.41, 98, 110, 123.47]; // A1, D2, E2, G2, A2, B2 - Deep bass scale
-        const durations = [1500, 1000, 2000, 1200, 800, 2500];
-        
-        notes.forEach((note, i) => {
-          playNote(note, durations[i], i * 300); // Faster, more energetic timing
-        });
-        
-        // Add some rhythmic bass hits
-        setTimeout(() => playNote(41.2, 200, 0), 1000); // Deep E1 hit
-        setTimeout(() => playNote(55, 200, 0), 2000); // A1 hit
-        setTimeout(() => playNote(49, 200, 0), 3500); // G1 hit
-        
-        setTimeout(ambientLoop, 6000); // Faster loop for more energy
-      };
-      
-      ambientLoop();
+      // Ambient music disabled - function does nothing
+      return;
     }
   }
 
