@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Top-Down Shooter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Home Page -->
+    <div id="home-page">
+      <div class="home-container">
+        <div class="game-title">
+          <h1>TANK SHOOTER</h1>
+          <div class="title-accent"></div>
+        </div>
+        
+        <div class="game-description">
+          <p>Survive endless waves of enemies in this intense top-down shooter!</p>
+          <p>Fight through increasingly difficult waves and achieve the highest score possible.</p>
+        </div>
+
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">🎯</div>
+            <h3>Precise Combat</h3>
+            <p>Auto-fire weapon with mouse-aimed precision</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">💥</div>
+            <h3>Explosive Effects</h3>
+            <p>Spectacular particle explosions and screen shake</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🎵</div>
+            <h3>Bass-Heavy Audio</h3>
+            <p>Energetic sound effects and ambient music</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <h3>Controls</h3>
+          <div class="control-grid">
+            <div class="control-item">
+              <span class="key">WASD</span>
+              <span class="action">Move</span>
+            </div>
+            <div class="control-item">
+              <span class="key">Mouse</span>
+              <span class="action">Aim & Shoot</span>
+            </div>
+            <div class="control-item">
+              <span class="key">Shift</span>
+              <span class="action">Sprint</span>
+            </div>
+            <div class="control-item">
+              <span class="key">R</span>
+              <span class="action">Restart</span>
+            </div>
+          </div>
+        </div>
+
+        <button id="start-game" class="start-button">
+          <span>START GAME</span>
+          <div class="button-glow"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Page (hidden initially) -->
+    <div id="game-page" style="display: none;">
+      <div id="ui">
+        <div id="health-container" aria-label="Player health bar">
+          <div id="health-bar"></div>
+        </div>
+        <div id="hud">
+          <span id="wave">Wave 1</span>
+          <span id="score">Score: 0</span>
+        </div>
+        <div id="crosshair"></div>
+        <div id="overlay" hidden>
+          <div class="panel">
+            <h1>Game Over</h1>
+            <p id="final-score">Score: 0</p>
+            <button id="restart">Restart (R)</button>
+            <button id="back-to-home">Back to Home</button>
+            <div class="help">
+              <p><strong>Controls</strong></p>
+              <p>Move: WASD · Shoot: Mouse · Sprint: Shift</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <canvas id="game" aria-label="Game canvas"></canvas>
+    </div>
+
+    <script src="main.js"></script>
+  </body>
+</html>
+
+
+
