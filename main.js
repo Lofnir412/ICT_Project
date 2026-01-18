@@ -163,6 +163,70 @@
 
   const audio = new AudioSystem();
 
+  /** Skin System **/
+  const skins = {
+    default: {
+      name: "Default",
+      bodyInner: "#ffffff",
+      bodyOuter: "#9ca3af",
+      barrel: "#d1d5db",
+      icon: "⚪"
+    },
+    fire: {
+      name: "Fire",
+      bodyInner: "#ffeb3b",
+      bodyOuter: "#ff5722",
+      barrel: "#ff9800",
+      icon: "🔥"
+    },
+    ice: {
+      name: "Ice",
+      bodyInner: "#e0f2f1",
+      bodyOuter: "#00bcd4",
+      barrel: "#0097a7",
+      icon: "❄️"
+    },
+    neon: {
+      name: "Neon",
+      bodyInner: "#f472b6",
+      bodyOuter: "#a78bfa",
+      barrel: "#c084fc",
+      icon: "💜"
+    },
+    toxic: {
+      name: "Toxic",
+      bodyInner: "#a8e063",
+      bodyOuter: "#2dd4bf",
+      barrel: "#34d399",
+      icon: "☢️"
+    },
+    gold: {
+      name: "Gold",
+      bodyInner: "#ffd700",
+      bodyOuter: "#ffa500",
+      barrel: "#ff8c00",
+      icon: "⭐"
+    },
+    shadow: {
+      name: "Shadow",
+      bodyInner: "#e5e7eb",
+      bodyOuter: "#1f2937",
+      barrel: "#374151",
+      icon: "🌑"
+    },
+    rainbow: {
+      name: "Rainbow",
+      bodyInner: "#ff0000",
+      bodyOuter: "#0000ff",
+      barrel: "#00ff00",
+      icon: "🌈"
+    }
+  };
+
+  // Load selected skin from localStorage or default to 'default'
+  let selectedSkin = localStorage.getItem('tankSkin') || 'default';
+  if (!skins[selectedSkin]) selectedSkin = 'default';
+
   /** Canvas setup **/
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -181,6 +245,7 @@
   const gamePageEl = document.getElementById("game-page");
   const startGameBtn = document.getElementById("start-game");
   const backToHomeBtn = document.getElementById("back-to-home");
+  const skinSelectorEl = document.getElementById("skin-selector");
 
   /** Game state **/
   const state = {
@@ -315,6 +380,7 @@
       this.reloadMs = 140; // time between shots
       this.timeSinceShotMs = 0;
       this.recoil = 0;
+      this.skin = selectedSkin;
     }
     update(dt) {
       const isSprinting = keys.has("shift");
@@ -361,6 +427,10 @@
       audio.playShootSound();
     }
     draw() {
+      // Get current skin (update from global selectedSkin)
+      this.skin = selectedSkin;
+      const skin = skins[this.skin] || skins.default;
+      
       // Directional body with subtle gradient
       const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
       const r = this.radius + this.recoil * 2;
@@ -368,15 +438,32 @@
       const py = this.y + Math.sin(angle) * (this.recoil * 2);
 
       const grad = ctx.createRadialGradient(px - 6, py - 6, 2, px, py, r + 8);
-      grad.addColorStop(0, "#ffffff");
-      grad.addColorStop(1, "#9ca3af");
+      
+      // Special handling for rainbow skin (cycling colors)
+      if (this.skin === 'rainbow') {
+        const time = performance.now() * 0.001;
+        const hue1 = (time * 60) % 360;
+        const hue2 = (hue1 + 180) % 360;
+        grad.addColorStop(0, `hsl(${hue1}, 100%, 60%)`);
+        grad.addColorStop(1, `hsl(${hue2}, 100%, 40%)`);
+      } else {
+        grad.addColorStop(0, skin.bodyInner);
+        grad.addColorStop(1, skin.bodyOuter);
+      }
+      
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.arc(px, py, r, 0, Math.PI * 2);
       ctx.fill();
 
       // Barrel
-      ctx.strokeStyle = "#d1d5db";
+      if (this.skin === 'rainbow') {
+        const time = performance.now() * 0.001;
+        const hue = (time * 60 + 120) % 360;
+        ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+      } else {
+        ctx.strokeStyle = skin.barrel;
+      }
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.moveTo(px, py);
@@ -897,6 +984,60 @@
   
   document.addEventListener('click', initAudioOnInteraction);
   document.addEventListener('keydown', initAudioOnInteraction);
+
+  /** Skin Selection UI **/
+  function populateSkinSelector() {
+    if (!skinSelectorEl) return;
+    
+    skinSelectorEl.innerHTML = '';
+    
+    Object.keys(skins).forEach(skinId => {
+      const skin = skins[skinId];
+      const skinBtn = document.createElement('button');
+      skinBtn.className = 'skin-button';
+      if (selectedSkin === skinId) {
+        skinBtn.classList.add('active');
+      }
+      
+      skinBtn.innerHTML = `
+        <span class="skin-icon">${skin.icon}</span>
+        <span class="skin-name">${skin.name}</span>
+      `;
+      
+      // Create preview circle
+      const preview = document.createElement('div');
+      preview.className = 'skin-preview';
+      if (skinId === 'rainbow') {
+        preview.style.background = 'linear-gradient(45deg, #ff0000, #00ff00, #0000ff)';
+        preview.style.backgroundSize = '200% 200%';
+        preview.style.animation = 'rainbowShift 3s linear infinite';
+      } else {
+        preview.style.background = `radial-gradient(circle, ${skin.bodyInner}, ${skin.bodyOuter})`;
+      }
+      skinBtn.appendChild(preview);
+      
+      skinBtn.addEventListener('click', () => {
+        selectedSkin = skinId;
+        localStorage.setItem('tankSkin', skinId);
+        
+        // Update active state
+        skinSelectorEl.querySelectorAll('.skin-button').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        skinBtn.classList.add('active');
+        
+        // Update player skin if it exists
+        if (player) {
+          player.skin = selectedSkin;
+        }
+      });
+      
+      skinSelectorEl.appendChild(skinBtn);
+    });
+  }
+
+  // Initialize skin selector on page load
+  populateSkinSelector();
 
   // Don't start the game automatically - wait for user to click "Start Game"
 })();
