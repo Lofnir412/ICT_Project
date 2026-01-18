@@ -872,9 +872,6 @@
     // Resume audio context if needed
     audio.resumeAudio();
     
-    // Start ambient music if not already started
-    audio.startAmbientMusic();
-    
     // Hide home page, show game page
     homePageEl.style.display = 'none';
     gamePageEl.style.display = 'block';
@@ -932,7 +929,6 @@
   // Audio initialization on user interaction
   function initAudioOnInteraction() {
     audio.resumeAudio();
-    audio.startAmbientMusic();
     document.removeEventListener('click', initAudioOnInteraction);
     document.removeEventListener('keydown', initAudioOnInteraction);
   }
