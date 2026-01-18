@@ -134,6 +134,27 @@
       setTimeout(() => this.playTone(180, 0.3, 0.2, 'sawtooth', 0.01, 0.25), 200);
     }
 
+    playWaveTransitionSound() {
+      // Ascending tone for wave progression
+      this.playTone(100, 0.2, 0.15, 'sawtooth', 0.01, 0.15);
+      setTimeout(() => this.playTone(150, 0.2, 0.15, 'square', 0.01, 0.15), 100);
+      setTimeout(() => this.playTone(200, 0.3, 0.18, 'sawtooth', 0.01, 0.2), 200);
+      this.playNoise(0.2, 0.12, 600);
+    }
+
+    playEnemySpawnSound() {
+      // Subtle spawn sound
+      const freq = 60 + Math.random() * 20;
+      this.playTone(freq, 0.15, 0.08, 'sawtooth', 0.05, 0.1);
+      this.playTone(freq * 1.5, 0.12, 0.06, 'square', 0.05, 0.08);
+    }
+
+    playLowHealthWarning() {
+      // Pulsing warning sound
+      const freq = 70 + Math.random() * 10;
+      this.playTone(freq, 0.3, 0.12, 'sawtooth', 0.01, 0.25);
+    }
+
     startAmbientMusic() {
       if (!this.isInitialized) return;
       
@@ -208,6 +229,7 @@
     lastFrameTs: performance.now(),
     screenShake: 0,
     flashEffect: 0,
+    lastLowHealthWarning: 0,
   };
 
   // Rotating hue seed for shots/FX
@@ -643,6 +665,8 @@
     else { x = -padding; y = randRange(-padding, h + padding); }
     const e = new Enemy(x, y, enemyStatsForWave(state.wave));
     entities.enemies.push(e);
+    // Play subtle spawn sound occasionally
+    if (chance(0.3)) audio.playEnemySpawnSound();
   }
 
   let spawnAccumulator = 0;
@@ -661,6 +685,8 @@
     if (state.timeSinceStartMs > 0 && Math.floor(state.timeSinceStartMs / 15000) + 1 !== state.wave) {
       state.wave = Math.floor(state.timeSinceStartMs / 15000) + 1;
       waveEl.textContent = `Wave ${state.wave}`;
+      // Play wave transition sound
+      audio.playWaveTransitionSound();
     }
   }
 
@@ -786,6 +812,15 @@
     // UI
     const hpRatio = clamp(player.health / player.maxHealth, 0, 1);
     healthBarEl.style.width = `${hpRatio * 100}%`;
+    
+    // Low health warning sound
+    if (hpRatio < 0.3 && hpRatio > 0) {
+      const timeSinceWarning = state.timeSinceStartMs - state.lastLowHealthWarning;
+      if (timeSinceWarning > 2000) { // Play warning every 2 seconds when low health
+        audio.playLowHealthWarning();
+        state.lastLowHealthWarning = state.timeSinceStartMs;
+      }
+    }
   }
 
   function draw(dt) {
@@ -837,6 +872,9 @@
     // Resume audio context if needed
     audio.resumeAudio();
     
+    // Start ambient music if not already started
+    audio.startAmbientMusic();
+    
     // Hide home page, show game page
     homePageEl.style.display = 'none';
     gamePageEl.style.display = 'block';
@@ -873,6 +911,7 @@
     state.lastFrameTs = performance.now();
     state.screenShake = 0;
     state.flashEffect = 0;
+    state.lastLowHealthWarning = 0;
     entities.projectiles.length = 0;
     entities.enemies.length = 0;
     entities.particles.length = 0;
