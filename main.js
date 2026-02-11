@@ -170,62 +170,172 @@
       bodyInner: "#ffffff",
       bodyOuter: "#9ca3af",
       barrel: "#d1d5db",
-      icon: "⚪"
+      icon: "⚪",
+      unlocked: true, // Always unlocked
+      unlockCondition: null
     },
     fire: {
       name: "Fire",
       bodyInner: "#ffeb3b",
       bodyOuter: "#ff5722",
       barrel: "#ff9800",
-      icon: "🔥"
+      icon: "🔥",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 500 }
     },
     ice: {
       name: "Ice",
       bodyInner: "#e0f2f1",
       bodyOuter: "#00bcd4",
       barrel: "#0097a7",
-      icon: "❄️"
+      icon: "❄️",
+      unlocked: false,
+      unlockCondition: { type: 'wave', value: 3 }
     },
     neon: {
       name: "Neon",
       bodyInner: "#f472b6",
       bodyOuter: "#a78bfa",
       barrel: "#c084fc",
-      icon: "💜"
+      icon: "💜",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 1500 }
     },
     toxic: {
       name: "Toxic",
       bodyInner: "#a8e063",
       bodyOuter: "#2dd4bf",
       barrel: "#34d399",
-      icon: "☢️"
+      icon: "☢️",
+      unlocked: false,
+      unlockCondition: { type: 'wave', value: 5 }
     },
     gold: {
       name: "Gold",
       bodyInner: "#ffd700",
       bodyOuter: "#ffa500",
       barrel: "#ff8c00",
-      icon: "⭐"
+      icon: "⭐",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 5000 }
     },
     shadow: {
       name: "Shadow",
       bodyInner: "#e5e7eb",
       bodyOuter: "#1f2937",
       barrel: "#374151",
-      icon: "🌑"
+      icon: "🌑",
+      unlocked: false,
+      unlockCondition: { type: 'wave', value: 8 }
     },
     rainbow: {
       name: "Rainbow",
       bodyInner: "#ff0000",
       bodyOuter: "#0000ff",
       barrel: "#00ff00",
-      icon: "🌈"
+      icon: "🌈",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 10000 }
     }
   };
 
+  // Load unlocked skins from localStorage
+  function loadUnlockedSkins() {
+    const saved = localStorage.getItem('unlockedSkins');
+    if (saved) {
+      try {
+        const unlocked = JSON.parse(saved);
+        Object.keys(skins).forEach(skinId => {
+          if (unlocked[skinId] !== undefined) {
+            skins[skinId].unlocked = unlocked[skinId];
+          }
+        });
+      } catch (e) {
+        console.warn('Failed to load unlocked skins:', e);
+      }
+    }
+    // Ensure default is always unlocked
+    skins.default.unlocked = true;
+  }
+  
+  function saveUnlockedSkins() {
+    const unlocked = {};
+    Object.keys(skins).forEach(skinId => {
+      unlocked[skinId] = skins[skinId].unlocked;
+    });
+    localStorage.setItem('unlockedSkins', JSON.stringify(unlocked));
+  }
+  
+  function checkSkinUnlocks() {
+    let unlockedAny = false;
+    const newlyUnlocked = [];
+    
+    Object.keys(skins).forEach(skinId => {
+      const skin = skins[skinId];
+      if (!skin.unlocked && skin.unlockCondition) {
+        let shouldUnlock = false;
+        if (skin.unlockCondition.type === 'score') {
+          shouldUnlock = state.score >= skin.unlockCondition.value;
+        } else if (skin.unlockCondition.type === 'wave') {
+          shouldUnlock = state.wave >= skin.unlockCondition.value;
+        }
+        
+        if (shouldUnlock) {
+          skin.unlocked = true;
+          unlockedAny = true;
+          newlyUnlocked.push(skin);
+          // Play unlock sound
+          audio.playTone(400, 0.3, 0.2, 'sine', 0.01, 0.25);
+          setTimeout(() => audio.playTone(500, 0.25, 0.18, 'square', 0.01, 0.2), 50);
+          setTimeout(() => audio.playTone(600, 0.3, 0.2, 'sine', 0.01, 0.25), 100);
+        }
+      }
+    });
+    
+    if (unlockedAny) {
+      saveUnlockedSkins();
+      populateSkinSelector(); // Refresh UI
+      
+      // Show unlock notification
+      if (newlyUnlocked.length > 0) {
+        showUnlockNotification(newlyUnlocked[0]);
+      }
+    }
+  }
+  
+  function showUnlockNotification(skin) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'unlock-notification';
+    notification.innerHTML = `
+      <div class="unlock-content">
+        <span class="unlock-icon">🎉</span>
+        <div class="unlock-text">
+          <div class="unlock-title">Skin Unlocked!</div>
+          <div class="unlock-skin">${skin.icon} ${skin.name}</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+  
+  // Initialize unlocked skins
+  loadUnlockedSkins();
+  
   // Load selected skin from localStorage or default to 'default'
   let selectedSkin = localStorage.getItem('tankSkin') || 'default';
-  if (!skins[selectedSkin]) selectedSkin = 'default';
+  if (!skins[selectedSkin] || !skins[selectedSkin].unlocked) {
+    selectedSkin = 'default';
+  }
 
   /** Canvas setup **/
   const canvas = document.getElementById("game");
@@ -239,6 +349,7 @@
   const finalScoreEl = document.getElementById("final-score");
   const restartBtn = document.getElementById("restart");
   const crosshairEl = document.getElementById("crosshair");
+  const powerupsIndicatorEl = document.getElementById("powerups-indicator");
   
   // Home page elements
   const homePageEl = document.getElementById("home-page");
@@ -375,14 +486,38 @@
       this.color = "#e5e7eb";
       this.maxHealth = 100;
       this.health = this.maxHealth;
-      this.moveSpeed = 260; // units per second
+      this.baseMoveSpeed = 260; // units per second
+      this.moveSpeed = 260;
       this.sprintMultiplier = 1.35;
-      this.reloadMs = 140; // time between shots
+      this.baseReloadMs = 140; // time between shots
+      this.reloadMs = 140;
       this.timeSinceShotMs = 0;
       this.recoil = 0;
       this.skin = selectedSkin;
+      
+      // Power-up effects
+      this.activeEffects = {
+        speedBoost: { active: false, endTime: 0, multiplier: 1.5 },
+        fireRateBoost: { active: false, endTime: 0, multiplier: 0.5 },
+        shield: { active: false, endTime: 0 },
+        multiShot: { active: false, endTime: 0, count: 3 },
+      };
     }
     update(dt) {
+      // Update active effects
+      const currentTime = state.timeSinceStartMs;
+      for (const effect in this.activeEffects) {
+        if (this.activeEffects[effect].active && currentTime >= this.activeEffects[effect].endTime) {
+          this.activeEffects[effect].active = false;
+          // Reset to base values
+          if (effect === 'speedBoost') {
+            this.moveSpeed = this.baseMoveSpeed;
+          } else if (effect === 'fireRateBoost') {
+            this.reloadMs = this.baseReloadMs;
+          }
+        }
+      }
+      
       const isSprinting = keys.has("shift");
       const speed = this.moveSpeed * (isSprinting ? this.sprintMultiplier : 1);
       let mx = 0, my = 0;
@@ -415,12 +550,35 @@
     shoot() {
       const dir = normalize(mouse.x - this.x, mouse.y - this.y);
       const spread = clamp((1 - clamp(this.health / this.maxHealth, 0, 1)) * 0.2, 0, 0.2);
-      const jitter = (Math.random() - 0.5) * spread;
-      const angle = Math.atan2(dir.y, dir.x) + jitter;
+      const baseAngle = Math.atan2(dir.y, dir.x);
       const speed = 700;
-      const projectile = new Projectile(this.x + Math.cos(angle) * 18, this.y + Math.sin(angle) * 18, Math.cos(angle) * speed, Math.sin(angle) * speed);
-      projectile.hue = (projectileHueSeed = (projectileHueSeed + 37) % 360);
-      entities.projectiles.push(projectile);
+      
+      // Multi-shot power-up
+      if (this.activeEffects.multiShot.active) {
+        const shotCount = this.activeEffects.multiShot.count;
+        const angleSpread = 0.3; // radians spread
+        for (let i = 0; i < shotCount; i++) {
+          const offset = shotCount > 1 ? (i - (shotCount - 1) / 2) * (angleSpread / (shotCount - 1)) : 0;
+          const angle = baseAngle + offset;
+          const jitter = (Math.random() - 0.5) * spread * 0.5;
+          const projectile = new Projectile(
+            this.x + Math.cos(angle) * 18, 
+            this.y + Math.sin(angle) * 18, 
+            Math.cos(angle + jitter) * speed, 
+            Math.sin(angle + jitter) * speed
+          );
+          projectile.hue = (projectileHueSeed = (projectileHueSeed + 37) % 360);
+          entities.projectiles.push(projectile);
+        }
+      } else {
+        // Normal single shot
+        const jitter = (Math.random() - 0.5) * spread;
+        const angle = baseAngle + jitter;
+        const projectile = new Projectile(this.x + Math.cos(angle) * 18, this.y + Math.sin(angle) * 18, Math.cos(angle) * speed, Math.sin(angle) * speed);
+        projectile.hue = (projectileHueSeed = (projectileHueSeed + 37) % 360);
+        entities.projectiles.push(projectile);
+      }
+      
       this.recoil = 1;
       
       // Play shooting sound
@@ -430,6 +588,17 @@
       // Get current skin (update from global selectedSkin)
       this.skin = selectedSkin;
       const skin = skins[this.skin] || skins.default;
+      
+      // Draw shield effect if active
+      if (this.activeEffects.shield.active) {
+        const time = performance.now() * 0.001;
+        const pulse = Math.sin(time * 5) * 0.3 + 0.7;
+        ctx.strokeStyle = `rgba(100, 200, 255, ${pulse * 0.8})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius + 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       
       // Directional body with subtle gradient
       const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
@@ -470,6 +639,28 @@
       ctx.lineTo(px + Math.cos(angle) * 24, py + Math.sin(angle) * 24);
       ctx.stroke();
     }
+    
+    applyPowerUp(type) {
+      const currentTime = state.timeSinceStartMs;
+      
+      if (type === 'health') {
+        this.health = Math.min(this.maxHealth, this.health + 30);
+      } else if (type === 'speed') {
+        this.activeEffects.speedBoost.active = true;
+        this.activeEffects.speedBoost.endTime = currentTime + 8000; // 8 seconds
+        this.moveSpeed = this.baseMoveSpeed * this.activeEffects.speedBoost.multiplier;
+      } else if (type === 'fireRate') {
+        this.activeEffects.fireRateBoost.active = true;
+        this.activeEffects.fireRateBoost.endTime = currentTime + 10000; // 10 seconds
+        this.reloadMs = this.baseReloadMs * this.activeEffects.fireRateBoost.multiplier;
+      } else if (type === 'shield') {
+        this.activeEffects.shield.active = true;
+        this.activeEffects.shield.endTime = currentTime + 5000; // 5 seconds
+      } else if (type === 'multiShot') {
+        this.activeEffects.multiShot.active = true;
+        this.activeEffects.multiShot.endTime = currentTime + 12000; // 12 seconds
+      }
+    }
   }
 
   class Projectile extends Entity {
@@ -503,6 +694,116 @@
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  class PowerUp extends Entity {
+    constructor(x, y, type) {
+      super(x, y);
+      this.type = type; // 'health', 'speed', 'fireRate', 'shield', 'multiShot'
+      this.radius = 18;
+      this.lifeTime = 15; // seconds before despawn
+      this.age = 0;
+      this.bobOffset = 0;
+      this.rotation = 0;
+      
+      // Visual properties based on type
+      const types = {
+        health: { color: '#ef4444', icon: '❤️', hue: 0 },
+        speed: { color: '#3b82f6', icon: '⚡', hue: 220 },
+        fireRate: { color: '#f59e0b', icon: '🔥', hue: 30 },
+        shield: { color: '#10b981', icon: '🛡️', hue: 150 },
+        multiShot: { color: '#a855f7', icon: '💥', hue: 270 },
+      };
+      
+      this.visual = types[type] || types.health;
+    }
+    
+    update(dt) {
+      this.age += dt;
+      this.bobOffset += dt * 3;
+      this.rotation += dt * 2;
+      
+      if (this.age >= this.lifeTime) {
+        this.alive = false;
+      }
+    }
+    
+    draw() {
+      const bob = Math.sin(this.bobOffset) * 3;
+      const y = this.y + bob;
+      const pulse = (Math.sin(this.bobOffset * 2) + 1) * 0.5;
+      const alpha = 0.45 + pulse * 0.55;
+      
+      // Radiating rays to make power-ups stand out
+      ctx.save();
+      ctx.translate(this.x, y);
+      ctx.rotate(this.rotation * 0.7);
+      ctx.strokeStyle = this.visual.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = alpha * 0.9;
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI * 2 * i) / 10;
+        const inner = this.radius + 8;
+        const outer = this.radius + 22;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+      ctx.restore();
+      
+      // Glow effect
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.shadowColor = this.visual.color;
+      ctx.shadowBlur = 35;
+      ctx.fillStyle = this.visual.color;
+      ctx.beginPath();
+      ctx.arc(this.x, y, this.radius + 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      
+      // Main circle with bright core and outline
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const grad = ctx.createRadialGradient(this.x - 4, y - 4, 2, this.x, y, this.radius);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.5, this.visual.color);
+      grad.addColorStop(1, '#111827');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(this.x, y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // White outline to pop against the background
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.stroke();
+      
+      // Rotating icon/indicator
+      ctx.save();
+      ctx.translate(this.x, y);
+      ctx.rotate(this.rotation);
+      ctx.globalAlpha = 1;
+      ctx.font = '18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.visual.icon, 0, 0);
+      ctx.restore();
+      
+      ctx.restore();
+      
+      // Pulsing outer ring
+      ctx.save();
+      ctx.strokeStyle = this.visual.color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.5 + pulse * 0.4;
+      ctx.beginPath();
+      ctx.arc(this.x, y, this.radius + 12, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     }
   }
@@ -583,6 +884,7 @@
     projectiles: [],
     enemies: [],
     particles: [],
+    powerups: [],
   };
 
   /** Enhanced particle system for hits and explosions **/
@@ -719,6 +1021,42 @@
   }
 
   let spawnAccumulator = 0;
+  function updatePowerUpsIndicator() {
+    if (!powerupsIndicatorEl) return;
+    
+    const activePowerUps = [];
+    const currentTime = state.timeSinceStartMs;
+    
+    if (player.activeEffects.speedBoost.active && currentTime < player.activeEffects.speedBoost.endTime) {
+      const timeLeft = Math.ceil((player.activeEffects.speedBoost.endTime - currentTime) / 1000);
+      activePowerUps.push({ icon: '⚡', name: 'Speed', timeLeft });
+    }
+    if (player.activeEffects.fireRateBoost.active && currentTime < player.activeEffects.fireRateBoost.endTime) {
+      const timeLeft = Math.ceil((player.activeEffects.fireRateBoost.endTime - currentTime) / 1000);
+      activePowerUps.push({ icon: '🔥', name: 'Fire Rate', timeLeft });
+    }
+    if (player.activeEffects.shield.active && currentTime < player.activeEffects.shield.endTime) {
+      const timeLeft = Math.ceil((player.activeEffects.shield.endTime - currentTime) / 1000);
+      activePowerUps.push({ icon: '🛡️', name: 'Shield', timeLeft });
+    }
+    if (player.activeEffects.multiShot.active && currentTime < player.activeEffects.multiShot.endTime) {
+      const timeLeft = Math.ceil((player.activeEffects.multiShot.endTime - currentTime) / 1000);
+      activePowerUps.push({ icon: '💥', name: 'Multi-Shot', timeLeft });
+    }
+    
+    if (activePowerUps.length === 0) {
+      powerupsIndicatorEl.innerHTML = '';
+      return;
+    }
+    
+    powerupsIndicatorEl.innerHTML = activePowerUps.map(pu => 
+      `<div class="powerup-badge" title="${pu.name}">
+        <span class="powerup-icon">${pu.icon}</span>
+        <span class="powerup-time">${pu.timeLeft}s</span>
+      </div>`
+    ).join('');
+  }
+
   function updateSpawning(dt) {
     spawnAccumulator += dt;
     const baseInterval = clamp(1.2 - state.wave * 0.06, 0.25, 1.2); // faster spawns with higher waves
@@ -736,6 +1074,13 @@
       waveEl.textContent = `Wave ${state.wave}`;
       // Play wave transition sound
       audio.playWaveTransitionSound();
+      // Check for wave-based unlocks
+      checkSkinUnlocks();
+    }
+    
+    // Check for score-based unlocks periodically
+    if (Math.floor(state.timeSinceStartMs) % 1000 < 100) {
+      checkSkinUnlocks();
     }
   }
 
@@ -763,11 +1108,51 @@
             state.score += e.bounty;
             scoreEl.textContent = `Score: ${state.score}`;
             
+            // Check for score-based unlocks
+            checkSkinUnlocks();
+            
             // Create spectacular explosion effect
             createExplosionEffect(e.x, e.y, e.hue);
             
             // Play explosion sound
             audio.playExplosionSound();
+            
+            // Chance to spawn power-up (20% chance)
+            if (chance(0.2)) {
+              const powerUpTypes = ['health', 'speed', 'fireRate', 'shield', 'multiShot'];
+              const type = powerUpTypes[randInt(0, powerUpTypes.length - 1)];
+              
+              // Spawn at random location, avoiding center and edges
+              const w = canvas.width / devicePixelRatioCached;
+              const h = canvas.height / devicePixelRatioCached;
+              const margin = 60; // Keep away from edges
+              const centerX = w / 2;
+              const centerY = h / 2;
+              const centerRadius = Math.min(w, h) * 0.25; // Avoid center 25% of screen
+              
+              let spawnX, spawnY;
+              let attempts = 0;
+              do {
+                // Random position with some offset from enemy death location
+                const offsetX = randRange(-150, 150);
+                const offsetY = randRange(-150, 150);
+                spawnX = clamp(e.x + offsetX, margin, w - margin);
+                spawnY = clamp(e.y + offsetY, margin, h - margin);
+                
+                // If still too close to center, try completely random position
+                const distFromCenter = length(spawnX - centerX, spawnY - centerY);
+                if (distFromCenter < centerRadius) {
+                  // Force random position away from center
+                  const angle = Math.random() * Math.PI * 2;
+                  const distance = centerRadius + randRange(50, Math.min(w, h) * 0.3);
+                  spawnX = clamp(centerX + Math.cos(angle) * distance, margin, w - margin);
+                  spawnY = clamp(centerY + Math.sin(angle) * distance, margin, h - margin);
+                }
+                attempts++;
+              } while (attempts < 10 && length(spawnX - player.x, spawnY - player.y) < 80);
+              
+              entities.powerups.push(new PowerUp(spawnX, spawnY, type));
+            }
           }
         }
       }
@@ -780,10 +1165,18 @@
       const dy = e.y - player.y;
       const r = e.radius + player.radius - 2;
       if (dx * dx + dy * dy <= r * r) {
-        player.health -= e.touchDamage * 0.02; // damage per frame ~ scaled by dt in update loop
-        if (player.health <= 0) {
-          player.health = 0;
-          endGame();
+        // Shield protects from damage
+        if (!player.activeEffects.shield.active) {
+          player.health -= e.touchDamage * 0.02; // damage per frame ~ scaled by dt in update loop
+          if (player.health <= 0) {
+            player.health = 0;
+            endGame();
+          }
+        } else {
+          // Shield hit effect
+          for (let i = 0; i < 5; i++) {
+            entities.particles.push(new Particle(player.x, player.y, `hsl(200, 90%, 70%)`, 'spark'));
+          }
         }
         // push enemy slightly away to avoid sticking
         const dir = normalize(dx, dy);
@@ -793,7 +1186,29 @@
         if (chance(0.2)) entities.particles.push(new Particle(player.x, player.y, `hsl(${(projectileHueSeed + 120) % 360}, 85%, 65%)`));
         
         // Play damage sound occasionally to avoid spam
-        if (chance(0.1)) audio.playDamageSound();
+        if (chance(0.1) && !player.activeEffects.shield.active) audio.playDamageSound();
+      }
+    }
+    
+    // Power-ups vs Player
+    for (const pu of entities.powerups) {
+      if (!pu.alive) continue;
+      const dx = pu.x - player.x;
+      const dy = pu.y - player.y;
+      const r = pu.radius + player.radius;
+      if (dx * dx + dy * dy <= r * r) {
+        // Collect power-up
+        player.applyPowerUp(pu.type);
+        pu.alive = false;
+        
+        // Collection effect
+        for (let i = 0; i < 15; i++) {
+          entities.particles.push(new Particle(pu.x, pu.y, pu.visual.color, 'spark'));
+        }
+        
+        // Play collection sound
+        audio.playTone(300 + Math.random() * 200, 0.2, 0.15, 'sine', 0.01, 0.15);
+        audio.playTone(400 + Math.random() * 200, 0.15, 0.12, 'square', 0.01, 0.12);
       }
     }
   }
@@ -846,6 +1261,7 @@
     for (const p of entities.projectiles) p.update(dt);
     for (const e of entities.enemies) e.update(dt);
     for (const pa of entities.particles) pa.update(dt);
+    for (const pu of entities.powerups) pu.update(dt);
 
     handleCollisions();
 
@@ -856,11 +1272,15 @@
     // Cleanup
     entities.projectiles = entities.projectiles.filter(p => p.alive);
     entities.enemies = entities.enemies.filter(e => e.alive);
+    entities.powerups = entities.powerups.filter(pu => pu.alive);
     entities.particles = entities.particles.filter(p => p.life > 0);
 
     // UI
     const hpRatio = clamp(player.health / player.maxHealth, 0, 1);
     healthBarEl.style.width = `${hpRatio * 100}%`;
+    
+    // Update power-ups indicator
+    updatePowerUpsIndicator();
     
     // Low health warning sound
     if (hpRatio < 0.3 && hpRatio > 0) {
@@ -884,6 +1304,7 @@
     player.draw();
     for (const e of entities.enemies) e.draw();
     for (const p of entities.projectiles) p.draw();
+    for (const pu of entities.powerups) pu.draw();
     for (const pa of entities.particles) pa.draw();
     
     ctx.restore();
@@ -909,6 +1330,9 @@
     state.isRunning = false;
     overlayEl.hidden = false;
     finalScoreEl.textContent = `Score: ${state.score}`;
+    
+    // Check for skin unlocks
+    checkSkinUnlocks();
     
     // Play game over sound
     audio.playGameOverSound();
@@ -960,13 +1384,29 @@
     state.lastLowHealthWarning = 0;
     entities.projectiles.length = 0;
     entities.enemies.length = 0;
+    entities.powerups.length = 0;
     entities.particles.length = 0;
+    
+    // Reset player effects
+    player.activeEffects.speedBoost.active = false;
+    player.activeEffects.fireRateBoost.active = false;
+    player.activeEffects.shield.active = false;
+    player.activeEffects.multiShot.active = false;
+    player.moveSpeed = player.baseMoveSpeed;
+    player.reloadMs = player.baseReloadMs;
     player.health = player.maxHealth;
     player.x = window.innerWidth / 2;
     player.y = window.innerHeight / 2;
     scoreEl.textContent = `Score: ${state.score}`;
     waveEl.textContent = `Wave ${state.wave}`;
     overlayEl.hidden = true;
+    
+    // Ensure selected skin is still unlocked (in case of reset)
+    if (!skins[selectedSkin] || !skins[selectedSkin].unlocked) {
+      selectedSkin = 'default';
+      localStorage.setItem('tankSkin', 'default');
+    }
+    
     requestAnimationFrame(frame);
   }
 
@@ -995,19 +1435,40 @@
       const skin = skins[skinId];
       const skinBtn = document.createElement('button');
       skinBtn.className = 'skin-button';
-      if (selectedSkin === skinId) {
+      
+      if (!skin.unlocked) {
+        skinBtn.classList.add('locked');
+        skinBtn.disabled = true;
+      }
+      
+      if (selectedSkin === skinId && skin.unlocked) {
         skinBtn.classList.add('active');
       }
       
+      // Get unlock requirement text
+      let requirementText = '';
+      if (!skin.unlocked && skin.unlockCondition) {
+        if (skin.unlockCondition.type === 'score') {
+          requirementText = `Score: ${skin.unlockCondition.value}`;
+        } else if (skin.unlockCondition.type === 'wave') {
+          requirementText = `Wave ${skin.unlockCondition.value}`;
+        }
+      }
+      
       skinBtn.innerHTML = `
-        <span class="skin-icon">${skin.icon}</span>
+        <span class="skin-icon">${skin.unlocked ? skin.icon : '🔒'}</span>
         <span class="skin-name">${skin.name}</span>
+        ${!skin.unlocked ? `<span class="skin-requirement">${requirementText}</span>` : ''}
       `;
       
       // Create preview circle
       const preview = document.createElement('div');
       preview.className = 'skin-preview';
-      if (skinId === 'rainbow') {
+      if (!skin.unlocked) {
+        preview.style.background = 'linear-gradient(135deg, #1f2937, #111827)';
+        preview.style.opacity = '0.5';
+        preview.style.filter = 'grayscale(100%)';
+      } else if (skinId === 'rainbow') {
         preview.style.background = 'linear-gradient(45deg, #ff0000, #00ff00, #0000ff)';
         preview.style.backgroundSize = '200% 200%';
         preview.style.animation = 'rainbowShift 3s linear infinite';
@@ -1016,21 +1477,31 @@
       }
       skinBtn.appendChild(preview);
       
-      skinBtn.addEventListener('click', () => {
-        selectedSkin = skinId;
-        localStorage.setItem('tankSkin', skinId);
-        
-        // Update active state
-        skinSelectorEl.querySelectorAll('.skin-button').forEach(btn => {
-          btn.classList.remove('active');
+      if (skin.unlocked) {
+        skinBtn.addEventListener('click', () => {
+          selectedSkin = skinId;
+          localStorage.setItem('tankSkin', skinId);
+          
+          // Update active state
+          skinSelectorEl.querySelectorAll('.skin-button').forEach(btn => {
+            btn.classList.remove('active');
+          });
+          skinBtn.classList.add('active');
+          
+          // Update player skin if it exists
+          if (player) {
+            player.skin = selectedSkin;
+          }
         });
-        skinBtn.classList.add('active');
-        
-        // Update player skin if it exists
-        if (player) {
-          player.skin = selectedSkin;
-        }
-      });
+      } else {
+        skinBtn.addEventListener('click', () => {
+          // Show unlock requirement on click
+          skinBtn.style.animation = 'shake 0.5s';
+          setTimeout(() => {
+            skinBtn.style.animation = '';
+          }, 500);
+        });
+      }
       
       skinSelectorEl.appendChild(skinBtn);
     });
