@@ -563,11 +563,7 @@ html, body {
 
 .powerup-icon {
   font-size: 1.1rem;
-}
-
-.powerup-time {
+}.powerup-time {
   color: var(--accent-2);
   font-size: 0.75rem;
 }
-
-

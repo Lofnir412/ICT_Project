@@ -236,6 +236,60 @@
       icon: "🌈",
       unlocked: false,
       unlockCondition: { type: 'score', value: 10000 }
+    },
+    desert: {
+      name: "Desert",
+      bodyInner: "#fef3c7",
+      bodyOuter: "#d97706",
+      barrel: "#92400e",
+      icon: "🌵",
+      unlocked: false,
+      unlockCondition: { type: 'wave', value: 2 }
+    },
+    forest: {
+      name: "Forest",
+      bodyInner: "#bbf7d0",
+      bodyOuter: "#15803d",
+      barrel: "#166534",
+      icon: "🌲",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 800 }
+    },
+    arctic: {
+      name: "Arctic",
+      bodyInner: "#e0f2fe",
+      bodyOuter: "#1d4ed8",
+      barrel: "#1e40af",
+      icon: "🧊",
+      unlocked: false,
+      unlockCondition: { type: 'wave', value: 4 }
+    },
+    lava: {
+      name: "Lava",
+      bodyInner: "#fee2e2",
+      bodyOuter: "#b91c1c",
+      barrel: "#7f1d1d",
+      icon: "🌋",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 2500 }
+    },
+    cyber: {
+      name: "Cyber",
+      bodyInner: "#a5f3fc",
+      bodyOuter: "#0ea5e9",
+      barrel: "#22c55e",
+      icon: "🤖",
+      unlocked: false,
+      unlockCondition: { type: 'wave', value: 6 }
+    },
+    galaxy: {
+      name: "Galaxy",
+      bodyInner: "#e9d5ff",
+      bodyOuter: "#4c1d95",
+      barrel: "#7c3aed",
+      icon: "🌌",
+      unlocked: false,
+      unlockCondition: { type: 'score', value: 7500 }
     }
   };
 
@@ -1512,5 +1566,3 @@
 
   // Don't start the game automatically - wait for user to click "Start Game"
 })();
-
-
