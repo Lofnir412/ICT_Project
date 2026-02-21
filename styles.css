@@ -132,6 +132,12 @@ html, body {
 
 .help { margin-top: 12px; font-size: 14px; opacity: 0.8; }
 
+.coins-earned {
+  color: var(--accent-2);
+  font-weight: 700;
+  margin: 4px 0 12px;
+}
+
 /* Home Page Styles */
 #home-page {
   position: fixed;
@@ -246,11 +252,40 @@ html, body {
   margin-bottom: 40px;
 }
 
+.skins-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .skins-section h3 {
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin: 0;
   color: var(--accent);
+}
+
+.coins-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-2);
+  background: rgba(15, 22, 32, 0.8);
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+}
+
+.coins-icon {
+  font-size: 1.2rem;
 }
 
 .skin-selector {
@@ -316,6 +351,17 @@ html, body {
 .skin-button.locked:hover {
   transform: none;
   border-color: #1f2937;
+}
+
+.skin-button.locked.can-buy {
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.skin-button.locked.can-buy:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.4);
 }
 
 .skin-button.locked .skin-preview {

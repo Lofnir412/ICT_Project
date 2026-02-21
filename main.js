@@ -164,6 +164,7 @@
   const audio = new AudioSystem();
 
   /** Skin System **/
+  // form, barrelStyle, price (coins - buy to unlock)
   const skins = {
     default: {
       name: "Default",
@@ -171,8 +172,10 @@
       bodyOuter: "#9ca3af",
       barrel: "#d1d5db",
       icon: "⚪",
-      unlocked: true, // Always unlocked
-      unlockCondition: null
+      form: "circle",
+      barrelStyle: "single",
+      unlocked: true,
+      price: 0
     },
     fire: {
       name: "Fire",
@@ -180,8 +183,10 @@
       bodyOuter: "#ff5722",
       barrel: "#ff9800",
       icon: "🔥",
+      form: "hexagon",
+      barrelStyle: "double",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 500 }
+      price: 100
     },
     ice: {
       name: "Ice",
@@ -189,8 +194,10 @@
       bodyOuter: "#00bcd4",
       barrel: "#0097a7",
       icon: "❄️",
+      form: "diamond",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'wave', value: 3 }
+      price: 80
     },
     neon: {
       name: "Neon",
@@ -198,8 +205,10 @@
       bodyOuter: "#a78bfa",
       barrel: "#c084fc",
       icon: "💜",
+      form: "square",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 1500 }
+      price: 200
     },
     toxic: {
       name: "Toxic",
@@ -207,8 +216,10 @@
       bodyOuter: "#2dd4bf",
       barrel: "#34d399",
       icon: "☢️",
+      form: "hexagon",
+      barrelStyle: "thick",
       unlocked: false,
-      unlockCondition: { type: 'wave', value: 5 }
+      price: 150
     },
     gold: {
       name: "Gold",
@@ -216,8 +227,10 @@
       bodyOuter: "#ffa500",
       barrel: "#ff8c00",
       icon: "⭐",
+      form: "octagon",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 5000 }
+      price: 400
     },
     shadow: {
       name: "Shadow",
@@ -225,8 +238,10 @@
       bodyOuter: "#1f2937",
       barrel: "#374151",
       icon: "🌑",
+      form: "wedge",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'wave', value: 8 }
+      price: 300
     },
     rainbow: {
       name: "Rainbow",
@@ -234,8 +249,10 @@
       bodyOuter: "#0000ff",
       barrel: "#00ff00",
       icon: "🌈",
+      form: "circle",
+      barrelStyle: "double",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 10000 }
+      price: 600
     },
     desert: {
       name: "Desert",
@@ -243,8 +260,10 @@
       bodyOuter: "#d97706",
       barrel: "#92400e",
       icon: "🌵",
+      form: "triangle",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'wave', value: 2 }
+      price: 60
     },
     forest: {
       name: "Forest",
@@ -252,8 +271,10 @@
       bodyOuter: "#15803d",
       barrel: "#166534",
       icon: "🌲",
+      form: "hexagon",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 800 }
+      price: 120
     },
     arctic: {
       name: "Arctic",
@@ -261,8 +282,10 @@
       bodyOuter: "#1d4ed8",
       barrel: "#1e40af",
       icon: "🧊",
+      form: "diamond",
+      barrelStyle: "single",
       unlocked: false,
-      unlockCondition: { type: 'wave', value: 4 }
+      price: 100
     },
     lava: {
       name: "Lava",
@@ -270,8 +293,10 @@
       bodyOuter: "#b91c1c",
       barrel: "#7f1d1d",
       icon: "🌋",
+      form: "wedge",
+      barrelStyle: "thick",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 2500 }
+      price: 250
     },
     cyber: {
       name: "Cyber",
@@ -279,8 +304,10 @@
       bodyOuter: "#0ea5e9",
       barrel: "#22c55e",
       icon: "🤖",
+      form: "square",
+      barrelStyle: "thick",
       unlocked: false,
-      unlockCondition: { type: 'wave', value: 6 }
+      price: 350
     },
     galaxy: {
       name: "Galaxy",
@@ -288,10 +315,36 @@
       bodyOuter: "#4c1d95",
       barrel: "#7c3aed",
       icon: "🌌",
+      form: "octagon",
+      barrelStyle: "double",
       unlocked: false,
-      unlockCondition: { type: 'score', value: 7500 }
+      price: 500
     }
   };
+
+  /** Coin / Currency System **/
+  function getCoins() {
+    return parseInt(localStorage.getItem('tankCoins') || '0', 10);
+  }
+  function setCoins(amount) {
+    const c = Math.max(0, amount);
+    localStorage.setItem('tankCoins', String(c));
+    updateCoinsDisplay();
+    return c;
+  }
+  function addCoins(amount) {
+    return setCoins(getCoins() + amount);
+  }
+  function spendCoins(amount) {
+    const c = getCoins();
+    if (c < amount) return false;
+    setCoins(c - amount);
+    return true;
+  }
+  function updateCoinsDisplay() {
+    const el = document.getElementById('coins-value');
+    if (el) el.textContent = getCoins();
+  }
 
   // Load unlocked skins from localStorage
   function loadUnlockedSkins() {
@@ -320,43 +373,6 @@
     localStorage.setItem('unlockedSkins', JSON.stringify(unlocked));
   }
   
-  function checkSkinUnlocks() {
-    let unlockedAny = false;
-    const newlyUnlocked = [];
-    
-    Object.keys(skins).forEach(skinId => {
-      const skin = skins[skinId];
-      if (!skin.unlocked && skin.unlockCondition) {
-        let shouldUnlock = false;
-        if (skin.unlockCondition.type === 'score') {
-          shouldUnlock = state.score >= skin.unlockCondition.value;
-        } else if (skin.unlockCondition.type === 'wave') {
-          shouldUnlock = state.wave >= skin.unlockCondition.value;
-        }
-        
-        if (shouldUnlock) {
-          skin.unlocked = true;
-          unlockedAny = true;
-          newlyUnlocked.push(skin);
-          // Play unlock sound
-          audio.playTone(400, 0.3, 0.2, 'sine', 0.01, 0.25);
-          setTimeout(() => audio.playTone(500, 0.25, 0.18, 'square', 0.01, 0.2), 50);
-          setTimeout(() => audio.playTone(600, 0.3, 0.2, 'sine', 0.01, 0.25), 100);
-        }
-      }
-    });
-    
-    if (unlockedAny) {
-      saveUnlockedSkins();
-      populateSkinSelector(); // Refresh UI
-      
-      // Show unlock notification
-      if (newlyUnlocked.length > 0) {
-        showUnlockNotification(newlyUnlocked[0]);
-      }
-    }
-  }
-  
   function showUnlockNotification(skin) {
     // Create notification element
     const notification = document.createElement('div');
@@ -382,8 +398,9 @@
     }, 3000);
   }
   
-  // Initialize unlocked skins
+  // Initialize unlocked skins and coins display (refresh when returning to home)
   loadUnlockedSkins();
+  updateCoinsDisplay();
   
   // Load selected skin from localStorage or default to 'default'
   let selectedSkin = localStorage.getItem('tankSkin') || 'default';
@@ -481,6 +498,55 @@
   function randRange(min, max) { return Math.random() * (max - min) + min; }
   function randInt(min, max) { return Math.floor(randRange(min, max + 1)); }
   function chance(p) { return Math.random() < p; }
+
+  /** Tank body shapes - draws different form based on skin **/
+  function drawTankBody(px, py, r, angle, form, fillStyle) {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(angle);
+    ctx.fillStyle = fillStyle;
+
+    if (form === 'circle') {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (form === 'wedge') {
+      // Pie-slice shape pointing forward (right after rotate)
+      const spread = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r, -spread * Math.PI * 0.5, spread * Math.PI * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    } else if (form === 'triangle') {
+      // Equilateral triangle pointing forward
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2 / 3) - Math.PI / 2;
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Regular polygon: square, diamond, hexagon, octagon
+      const sides = form === 'square' || form === 'diamond' ? 4 : form === 'hexagon' ? 6 : 8;
+      const offset = form === 'diamond' ? Math.PI / 4 : 0;
+      ctx.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const a = offset + (i * Math.PI * 2 / sides) - Math.PI / 2;
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
 
   /** Visual effects **/
   function addScreenShake(intensity = 10) {
@@ -654,15 +720,14 @@
         ctx.stroke();
       }
       
-      // Directional body with subtle gradient
+      // Directional body - shape depends on skin form
       const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
       const r = this.radius + this.recoil * 2;
       const px = this.x + Math.cos(angle) * (this.recoil * 2);
       const py = this.y + Math.sin(angle) * (this.recoil * 2);
+      const form = skin.form || 'circle';
 
       const grad = ctx.createRadialGradient(px - 6, py - 6, 2, px, py, r + 8);
-      
-      // Special handling for rainbow skin (cycling colors)
       if (this.skin === 'rainbow') {
         const time = performance.now() * 0.001;
         const hue1 = (time * 60) % 360;
@@ -673,13 +738,10 @@
         grad.addColorStop(0, skin.bodyInner);
         grad.addColorStop(1, skin.bodyOuter);
       }
-      
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fill();
+      drawTankBody(px, py, r, angle, form, grad);
 
-      // Barrel
+      // Barrel - style depends on skin
+      const barrelStyle = skin.barrelStyle || 'single';
       if (this.skin === 'rainbow') {
         const time = performance.now() * 0.001;
         const hue = (time * 60 + 120) % 360;
@@ -687,11 +749,26 @@
       } else {
         ctx.strokeStyle = skin.barrel;
       }
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + Math.cos(angle) * 24, py + Math.sin(angle) * 24);
-      ctx.stroke();
+      const lineW = barrelStyle === 'thick' ? 6 : 4;
+      ctx.lineWidth = lineW;
+      ctx.lineCap = 'round';
+      const barrelLen = 24;
+      if (barrelStyle === 'double') {
+        const offset = 3;
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(angle) * offset - Math.sin(angle) * 2, py + Math.sin(angle) * offset + Math.cos(angle) * 2);
+        ctx.lineTo(px + Math.cos(angle) * (barrelLen + offset) - Math.sin(angle) * 2, py + Math.sin(angle) * (barrelLen + offset) + Math.cos(angle) * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(angle) * offset + Math.sin(angle) * 2, py + Math.sin(angle) * offset - Math.cos(angle) * 2);
+        ctx.lineTo(px + Math.cos(angle) * (barrelLen + offset) + Math.sin(angle) * 2, py + Math.sin(angle) * (barrelLen + offset) - Math.cos(angle) * 2);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + Math.cos(angle) * barrelLen, py + Math.sin(angle) * barrelLen);
+        ctx.stroke();
+      }
     }
     
     applyPowerUp(type) {
@@ -1128,13 +1205,6 @@
       waveEl.textContent = `Wave ${state.wave}`;
       // Play wave transition sound
       audio.playWaveTransitionSound();
-      // Check for wave-based unlocks
-      checkSkinUnlocks();
-    }
-    
-    // Check for score-based unlocks periodically
-    if (Math.floor(state.timeSinceStartMs) % 1000 < 100) {
-      checkSkinUnlocks();
     }
   }
 
@@ -1161,9 +1231,6 @@
             e.alive = false;
             state.score += e.bounty;
             scoreEl.textContent = `Score: ${state.score}`;
-            
-            // Check for score-based unlocks
-            checkSkinUnlocks();
             
             // Create spectacular explosion effect
             createExplosionEffect(e.x, e.y, e.hue);
@@ -1385,10 +1452,16 @@
     overlayEl.hidden = false;
     finalScoreEl.textContent = `Score: ${state.score}`;
     
-    // Check for skin unlocks
-    checkSkinUnlocks();
+    const coinsEarned = Math.floor(state.score / 25) + state.wave * 3;
+    if (coinsEarned > 0) {
+      addCoins(coinsEarned);
+    }
+    const coinsEarnedEl = document.getElementById('coins-earned');
+    if (coinsEarnedEl) {
+      coinsEarnedEl.textContent = coinsEarned > 0 ? `+${coinsEarned} coins earned` : '';
+      coinsEarnedEl.style.display = coinsEarned > 0 ? 'block' : 'none';
+    }
     
-    // Play game over sound
     audio.playGameOverSound();
   }
 
@@ -1408,16 +1481,13 @@
   }
 
   function goToHome() {
-    // Stop the game
     state.isRunning = false;
-    
-    // Hide game page, show home page
     gamePageEl.style.display = 'none';
     homePageEl.style.display = 'flex';
-    
-    // Reset any visual effects
     state.screenShake = 0;
     state.flashEffect = 0;
+    updateCoinsDisplay();
+    populateSkinSelector();
   }
 
   function restartGame() {
@@ -1492,22 +1562,16 @@
       
       if (!skin.unlocked) {
         skinBtn.classList.add('locked');
-        skinBtn.disabled = true;
+        if (!skin.price) skinBtn.disabled = true;
+        else if (skin.price && getCoins() >= skin.price) skinBtn.classList.add('can-buy');
       }
       
       if (selectedSkin === skinId && skin.unlocked) {
         skinBtn.classList.add('active');
       }
       
-      // Get unlock requirement text
-      let requirementText = '';
-      if (!skin.unlocked && skin.unlockCondition) {
-        if (skin.unlockCondition.type === 'score') {
-          requirementText = `Score: ${skin.unlockCondition.value}`;
-        } else if (skin.unlockCondition.type === 'wave') {
-          requirementText = `Wave ${skin.unlockCondition.value}`;
-        }
-      }
+      // Get requirement text (price only)
+      const requirementText = !skin.unlocked && skin.price ? `${skin.price} coins` : '';
       
       skinBtn.innerHTML = `
         <span class="skin-icon">${skin.unlocked ? skin.icon : '🔒'}</span>
@@ -1515,9 +1579,19 @@
         ${!skin.unlocked ? `<span class="skin-requirement">${requirementText}</span>` : ''}
       `;
       
-      // Create preview circle
+      // Create preview - shape matches skin form
       const preview = document.createElement('div');
       preview.className = 'skin-preview';
+      const form = skin.form || 'circle';
+      const clipPaths = {
+        hexagon: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+        diamond: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+        square: 'polygon(5% 5%, 95% 5%, 95% 95%, 5% 95%)',
+        triangle: 'polygon(50% 5%, 95% 95%, 5% 95%)',
+        octagon: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+        wedge: 'polygon(50% 50%, 100% 0%, 100% 100%)'
+      };
+      if (clipPaths[form]) preview.style.clipPath = clipPaths[form];
       if (!skin.unlocked) {
         preview.style.background = 'linear-gradient(135deg, #1f2937, #111827)';
         preview.style.opacity = '0.5';
@@ -1536,24 +1610,30 @@
           selectedSkin = skinId;
           localStorage.setItem('tankSkin', skinId);
           
-          // Update active state
           skinSelectorEl.querySelectorAll('.skin-button').forEach(btn => {
             btn.classList.remove('active');
           });
           skinBtn.classList.add('active');
           
-          // Update player skin if it exists
           if (player) {
             player.skin = selectedSkin;
           }
         });
+      } else if (skin.price && getCoins() >= skin.price) {
+        // Buyable and can afford
+        skinBtn.addEventListener('click', () => {
+          if (spendCoins(skin.price)) {
+            skin.unlocked = true;
+            saveUnlockedSkins();
+            audio.playTone(500, 0.2, 0.15, 'sine', 0.01, 0.15);
+            showUnlockNotification(skin);
+            populateSkinSelector();
+          }
+        });
       } else {
         skinBtn.addEventListener('click', () => {
-          // Show unlock requirement on click
           skinBtn.style.animation = 'shake 0.5s';
-          setTimeout(() => {
-            skinBtn.style.animation = '';
-          }, 500);
+          setTimeout(() => { skinBtn.style.animation = ''; }, 500);
         });
       }
       

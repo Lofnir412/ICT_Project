@@ -1,0 +1,30 @@
+TO-DO LIST
+
+    -Tutorial
+        -First time opening
+        -Explains:
+            -Shooting and aiming
+            -Movement
+            -Boosts
+    -Off-game pages
+        -Home page
+            -
+        -Skin shop
+            -A lot of skins
+                -different sizes
+                -different colors
+                -different shapes
+            -Skin rarity
+                -Common
+                -Uncommon
+                -Rare
+                -Epic
+                -Legendary
+                -Special
+                    -A skin for the best player etc...
+        -Leader board
+            -Best scores
+                -from you
+                -from your friends
+                -from everybody
+            -Most money etc...

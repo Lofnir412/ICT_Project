@@ -19,7 +19,13 @@
         </div>
         
         <div class="skins-section">
-          <h3>Tank Skin</h3>
+          <div class="skins-header">
+            <h3>Tank Skin</h3>
+            <div id="coins-display" class="coins-display">
+              <span class="coins-icon">🪙</span>
+              <span id="coins-value">0</span> coins
+            </div>
+          </div>
           <div id="skin-selector" class="skin-selector">
             <!-- Skins will be populated by JavaScript -->
           </div>
@@ -48,6 +54,7 @@
           <div class="panel">
             <h1>Game Over</h1>
             <p id="final-score">Score: 0</p>
+            <p id="coins-earned" class="coins-earned"></p>
             <button id="restart">Restart (R)</button>
             <button id="back-to-home">Back to Home</button>
             <div class="help">
