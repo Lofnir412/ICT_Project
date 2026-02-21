@@ -8,7 +8,9 @@ TO-DO LIST
             -Boosts
     -Off-game pages
         -Home page
-            -
+            -Start game
+            -Title
+            -Link to other pages
         -Skin shop
             -A lot of skins
                 -different sizes
