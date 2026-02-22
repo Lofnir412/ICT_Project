@@ -475,32 +475,59 @@
   window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
   window.addEventListener("mousedown", () => (mouse.isDown = true));
   window.addEventListener("mouseup", () => (mouse.isDown = false));
-  window.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    mouse.x = e.clientX - rect.left;
-    mouse.y = e.clientY - rect.top;
-    crosshairEl.style.left = `${e.clientX}px`;
-    crosshairEl.style.top = `${e.clientY}px`;
+  window.addEventListener("touchstart", (e) => {
+    mouse.isDown = true;
+    if (e.touches.length) updateAimPosition(e.touches[0].clientX, e.touches[0].clientY);
   });
+  window.addEventListener("touchend", () => (mouse.isDown = false));
+  function updateAimPosition(clientX, clientY) {
+    const g = screenToGame(clientX, clientY);
+    mouse.x = g.x;
+    mouse.y = g.y;
+    crosshairEl.style.left = `${clientX}px`;
+    crosshairEl.style.top = `${clientY}px`;
+  }
+  window.addEventListener("mousemove", (e) => updateAimPosition(e.clientX, e.clientY));
+  window.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (e.touches.length) updateAimPosition(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
 
   restartBtn.addEventListener("click", restartGame);
   backToHomeBtn.addEventListener("click", goToHome);
   startGameBtn.addEventListener("click", startGame);
 
-  /** Coordinate scaling **/
+  /** Coordinate scaling - fixed design size, scales to fit viewport **/
+  const DESIGN_WIDTH = 1000;
+  const DESIGN_HEIGHT = 600;
+  let gameWidth = DESIGN_WIDTH;
+  let gameHeight = DESIGN_HEIGHT;
   let devicePixelRatioCached = Math.max(window.devicePixelRatio || 1, 1);
+
   function resizeCanvas() {
     devicePixelRatioCached = Math.max(window.devicePixelRatio || 1, 1);
-    const width = Math.floor(window.innerWidth);
-    const height = Math.floor(window.innerHeight);
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
-    canvas.width = Math.floor(width * devicePixelRatioCached);
-    canvas.height = Math.floor(height * devicePixelRatioCached);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const fitScale = Math.min(vw / DESIGN_WIDTH, vh / DESIGN_HEIGHT);
+    const displayW = Math.floor(DESIGN_WIDTH * fitScale);
+    const displayH = Math.floor(DESIGN_HEIGHT * fitScale);
+    canvas.style.width = displayW + "px";
+    canvas.style.height = displayH + "px";
+    canvas.width = Math.floor(DESIGN_WIDTH * devicePixelRatioCached);
+    canvas.height = Math.floor(DESIGN_HEIGHT * devicePixelRatioCached);
     ctx.setTransform(devicePixelRatioCached, 0, 0, devicePixelRatioCached, 0, 0);
+    gameWidth = DESIGN_WIDTH;
+    gameHeight = DESIGN_HEIGHT;
   }
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
+
+  function screenToGame(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * gameWidth;
+    const y = ((clientY - rect.top) / rect.height) * gameHeight;
+    return { x, y };
+  }
 
   /** Utility functions **/
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -668,8 +695,8 @@
       }
 
       // Integrate
-      this.x = clamp(this.x + this.vx * dt, 16, canvas.width / devicePixelRatioCached - 16);
-      this.y = clamp(this.y + this.vy * dt, 16, canvas.height / devicePixelRatioCached - 16);
+      this.x = clamp(this.x + this.vx * dt, 16, gameWidth - 16);
+      this.y = clamp(this.y + this.vy * dt, 16, gameHeight - 16);
 
       // Shooting (always auto-fire)
       this.timeSinceShotMs += dt * 1000;
@@ -823,10 +850,8 @@
       this.x += this.vx * dt;
       this.y += this.vy * dt;
       // Despawn only when far off-screen (allows travel across the whole view)
-      const w = canvas.width / devicePixelRatioCached;
-      const h = canvas.height / devicePixelRatioCached;
       const margin = 120; // allow some offscreen travel before cleanup
-      if (this.x < -margin || this.x > w + margin || this.y < -margin || this.y > h + margin) {
+      if (this.x < -margin || this.x > gameWidth + margin || this.y < -margin || this.y > gameHeight + margin) {
         this.alive = false;
       }
     }
@@ -979,8 +1004,8 @@
 
       // World bounds keep inside a margin, bounce slightly
       const margin = 12;
-      const maxX = canvas.width / devicePixelRatioCached - margin;
-      const maxY = canvas.height / devicePixelRatioCached - margin;
+      const maxX = gameWidth - margin;
+      const maxY = gameHeight - margin;
       if (this.x < margin) { this.x = margin; this.vx *= -0.4; }
       if (this.x > maxX) { this.x = maxX; this.vx *= -0.4; }
       if (this.y < margin) { this.y = margin; this.vy *= -0.4; }
@@ -1110,7 +1135,7 @@
   }
 
   /** Player instance **/
-  const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
+  const player = new Player(gameWidth / 2, gameHeight / 2);
 
   /** Spawning and difficulty **/
   function enemyStatsForWave(wave) {
@@ -1151,8 +1176,8 @@
 
   function spawnEnemy() {
     const padding = 40;
-    const w = canvas.width / devicePixelRatioCached;
-    const h = canvas.height / devicePixelRatioCached;
+    const w = gameWidth;
+    const h = gameHeight;
     const side = randInt(0, 3); // 0 top, 1 right, 2 bottom, 3 left
     let x = 0, y = 0;
     if (side === 0) { x = randRange(-padding, w + padding); y = -padding; }
@@ -1258,12 +1283,10 @@
               const type = powerUpTypes[randInt(0, powerUpTypes.length - 1)];
               
               // Spawn at random location, avoiding center and edges
-              const w = canvas.width / devicePixelRatioCached;
-              const h = canvas.height / devicePixelRatioCached;
               const margin = 60; // Keep away from edges
-              const centerX = w / 2;
-              const centerY = h / 2;
-              const centerRadius = Math.min(w, h) * 0.25; // Avoid center 25% of screen
+              const centerX = gameWidth / 2;
+              const centerY = gameHeight / 2;
+              const centerRadius = Math.min(gameWidth, gameHeight) * 0.25; // Avoid center 25% of screen
               
               let spawnX, spawnY;
               let attempts = 0;
@@ -1271,17 +1294,17 @@
                 // Random position with some offset from enemy death location
                 const offsetX = randRange(-150, 150);
                 const offsetY = randRange(-150, 150);
-                spawnX = clamp(e.x + offsetX, margin, w - margin);
-                spawnY = clamp(e.y + offsetY, margin, h - margin);
+                spawnX = clamp(e.x + offsetX, margin, gameWidth - margin);
+                spawnY = clamp(e.y + offsetY, margin, gameHeight - margin);
                 
                 // If still too close to center, try completely random position
                 const distFromCenter = length(spawnX - centerX, spawnY - centerY);
                 if (distFromCenter < centerRadius) {
                   // Force random position away from center
                   const angle = Math.random() * Math.PI * 2;
-                  const distance = centerRadius + randRange(50, Math.min(w, h) * 0.3);
-                  spawnX = clamp(centerX + Math.cos(angle) * distance, margin, w - margin);
-                  spawnY = clamp(centerY + Math.sin(angle) * distance, margin, h - margin);
+                  const distance = centerRadius + randRange(50, Math.min(gameWidth, gameHeight) * 0.3);
+                  spawnX = clamp(centerX + Math.cos(angle) * distance, margin, gameWidth - margin);
+                  spawnY = clamp(centerY + Math.sin(angle) * distance, margin, gameHeight - margin);
                 }
                 attempts++;
               } while (attempts < 10 && length(spawnX - player.x, spawnY - player.y) < 80);
@@ -1350,36 +1373,32 @@
 
   /** Render background **/
   function drawBackground(dt) {
-    // Colorful moving grid with hue shifts
     ctx.fillStyle = "#0b0f14";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, gameWidth, gameHeight);
 
-    const scale = 1 / devicePixelRatioCached;
-    const w = canvas.width * scale;
-    const h = canvas.height * scale;
     const t = performance.now() * 0.0005;
     const gridSize = 48;
     ctx.lineWidth = 1;
     ctx.globalAlpha = 0.6;
 
     // Vertical lines
-    for (let x = -gridSize; x < w + gridSize; x += gridSize) {
+    for (let x = -gridSize; x < gameWidth + gridSize; x += gridSize) {
       const ox = Math.sin(t + x * 0.02) * 2;
       const hue = (x * 2 + t * 360) % 360;
       ctx.strokeStyle = `hsla(${hue}, 70%, 45%, 0.6)`;
       ctx.beginPath();
       ctx.moveTo(x + ox, 0);
-      ctx.lineTo(x + ox, h);
+      ctx.lineTo(x + ox, gameHeight);
       ctx.stroke();
     }
     // Horizontal lines
-    for (let y = -gridSize; y < h + gridSize; y += gridSize) {
+    for (let y = -gridSize; y < gameHeight + gridSize; y += gridSize) {
       const oy = Math.cos(t + y * 0.02) * 2;
       const hue = (y * 2 + t * 360 + 120) % 360;
       ctx.strokeStyle = `hsla(${hue}, 70%, 40%, 0.6)`;
       ctx.beginPath();
       ctx.moveTo(0, y + oy);
-      ctx.lineTo(w, y + oy);
+      ctx.lineTo(gameWidth, y + oy);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -1448,7 +1467,7 @@
     if (state.flashEffect > 0) {
       ctx.globalAlpha = state.flashEffect;
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, gameWidth, gameHeight);
       ctx.globalAlpha = 1;
     }
   }
@@ -1533,8 +1552,8 @@
     player.moveSpeed = player.baseMoveSpeed;
     player.reloadMs = player.baseReloadMs;
     player.health = player.maxHealth;
-    player.x = window.innerWidth / 2;
-    player.y = window.innerHeight / 2;
+    player.x = gameWidth / 2;
+    player.y = gameHeight / 2;
     scoreEl.textContent = `Score: ${state.score}`;
     waveEl.textContent = `Wave ${state.wave}`;
     overlayEl.hidden = true;
