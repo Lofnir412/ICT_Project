@@ -163,6 +163,20 @@
 
   const audio = new AudioSystem();
 
+  /** Device detection: computer vs mobile **/
+  const isMobile = (() => {
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const narrowScreen = window.innerWidth < 768;
+    const mobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return (hasTouch && narrowScreen) || mobileUA;
+  })();
+
+  if (isMobile) {
+    document.body.classList.add('device-mobile');
+  } else {
+    document.body.classList.add('device-desktop');
+  }
+
   /** Skin System **/
   // form, barrelStyle, price (coins - buy to unlock)
   const skins = {
@@ -1579,11 +1593,16 @@
         ${!skin.unlocked ? `<span class="skin-requirement">${requirementText}</span>` : ''}
       `;
       
-      // Create preview - shape matches skin form
+      // Create preview - body shape + barrel (visible for both selected and unselected)
+      const previewWrap = document.createElement('div');
+      previewWrap.className = 'skin-preview-wrap';
+
       const preview = document.createElement('div');
       preview.className = 'skin-preview';
+      preview.dataset.form = skin.form || 'circle';
       const form = skin.form || 'circle';
       const clipPaths = {
+        circle: 'none',
         hexagon: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
         diamond: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
         square: 'polygon(5% 5%, 95% 5%, 95% 95%, 5% 95%)',
@@ -1591,7 +1610,8 @@
         octagon: 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
         wedge: 'polygon(50% 50%, 100% 0%, 100% 100%)'
       };
-      if (clipPaths[form]) preview.style.clipPath = clipPaths[form];
+      preview.style.clipPath = clipPaths[form] || clipPaths.circle;
+      preview.style.borderRadius = form === 'circle' ? '50%' : '0';
       if (!skin.unlocked) {
         preview.style.background = 'linear-gradient(135deg, #1f2937, #111827)';
         preview.style.opacity = '0.5';
@@ -1603,7 +1623,21 @@
       } else {
         preview.style.background = `radial-gradient(circle, ${skin.bodyInner}, ${skin.bodyOuter})`;
       }
-      skinBtn.appendChild(preview);
+      previewWrap.appendChild(preview);
+
+      const barrel = document.createElement('div');
+      barrel.className = 'skin-preview-barrel';
+      barrel.dataset.style = skin.barrelStyle || 'single';
+      const barrelColor = skin.unlocked ? (skin.barrel || '#d1d5db') : '#4b5563';
+      barrel.style.setProperty('--barrel-color', barrelColor);
+      barrel.style.backgroundColor = barrelColor;
+      if (skinId === 'rainbow' && skin.unlocked) {
+        barrel.style.background = 'linear-gradient(90deg, #ff0000, #00ff00, #0000ff)';
+        barrel.style.setProperty('--barrel-color', '#22c55e');
+      }
+      previewWrap.appendChild(barrel);
+
+      skinBtn.appendChild(previewWrap);
       
       if (skin.unlocked) {
         skinBtn.addEventListener('click', () => {

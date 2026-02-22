@@ -324,13 +324,38 @@ html, body {
   box-shadow: 0 0 20px rgba(45, 212, 191, 0.3);
 }
 
-.skin-preview {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #374151;
+.skin-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
+.skin-preview {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 2px solid #374151;
+  /* border-radius and clip-path set per skin form via JS */
+}
+
+.skin-preview-barrel {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.skin-preview-barrel[data-style="thick"] {
+  height: 6px;
+}
+
+.skin-preview-barrel[data-style="double"] {
+  width: 20px;
+  height: 2px;
+  box-shadow: 0 4px 0 0 var(--barrel-color, #d1d5db);
+}
+
+/* Selected state: only the button frame changes, preview stays identical */
 .skin-icon {
   font-size: 1.5rem;
 }
