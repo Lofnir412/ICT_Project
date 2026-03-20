@@ -638,3 +638,102 @@ html, body {
   color: var(--accent-2);
   font-size: 0.75rem;
 }
+
+/* ── Mobile hint on home page ── */
+.mobile-hint {
+  display: none;
+  margin: 16px auto 0;
+  font-size: 0.85rem;
+  opacity: 0.65;
+  letter-spacing: 0.03em;
+}
+
+/* ── Mobile overrides ── */
+@media (pointer: coarse), (max-width: 768px) {
+  /* Show touch hint, hide if desktop */
+  .mobile-hint { display: block; }
+
+  /* No cursor crosshair on touch */
+  #crosshair { display: none !important; }
+
+  /* Prevent text selection / callout during gameplay */
+  #game-page {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  canvas#game {
+    touch-action: none;
+  }
+
+  /* Health bar – a bit taller for readability */
+  #health-container {
+    height: 20px;
+    width: min(80vw, 400px);
+    top: 14px;
+  }
+
+  /* HUD text – slightly larger */
+  #hud {
+    top: 44px;
+    font-size: 1rem;
+    gap: 20px;
+  }
+
+  /* Power-up badges – push down so they don't overlap HUD */
+  #powerups-indicator {
+    top: 76px;
+  }
+
+  /* Home page: compact layout on small screens */
+  .home-container {
+    padding: 0 8px;
+  }
+
+  .game-title h1 {
+    font-size: clamp(2rem, 12vw, 3rem);
+  }
+
+  .skins-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* Skin buttons: smaller on mobile so they all fit */
+  .skin-button {
+    min-width: 72px;
+    padding: 8px 10px;
+    gap: 5px;
+  }
+  .skin-preview {
+    width: 26px;
+    height: 26px;
+  }
+  .skin-name {
+    font-size: 0.75rem;
+  }
+  .skin-requirement {
+    font-size: 0.65rem;
+  }
+
+  /* Start button – larger tap target */
+  .start-button {
+    padding: 20px 48px;
+    font-size: 1.1rem;
+  }
+
+  /* Game-over overlay buttons – easier to tap */
+  #restart, #back-to-home {
+    padding: 14px 20px;
+    font-size: 1rem;
+    border-radius: 12px;
+    margin: 6px 4px 0;
+    display: inline-block;
+  }
+
+  #overlay .panel {
+    padding: 32px 20px;
+  }
+}

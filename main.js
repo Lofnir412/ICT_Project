@@ -163,6 +163,26 @@
 
   const audio = new AudioSystem();
 
+  /** Mobile Detection & Touch Controls **/
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  // Virtual joystick state (left half of screen)
+  const joystick = {
+    active: false,
+    touchId: null,
+    baseX: 0, baseY: 0,
+    knobX: 0, knobY: 0,
+    dx: 0, dy: 0,
+    maxRadius: 65
+  };
+
+  // Aim touch state (right half of screen)
+  const aimTouch = {
+    active: false,
+    touchId: null,
+    x: 0, y: 0
+  };
+
   /** Skin System **/
   // form, barrelStyle, price (coins - buy to unlock)
   const skins = {
@@ -473,6 +493,77 @@
   backToHomeBtn.addEventListener("click", goToHome);
   startGameBtn.addEventListener("click", startGame);
 
+  /** Touch Controls **/
+  if (isMobile) {
+    // Prevent native scroll/zoom during gameplay
+    document.addEventListener('touchmove', e => { if (!homePageEl || homePageEl.style.display === 'none') e.preventDefault(); }, { passive: false });
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove',  handleTouchMove,  { passive: false });
+    canvas.addEventListener('touchend',   handleTouchEnd,   { passive: false });
+    canvas.addEventListener('touchcancel',handleTouchEnd,   { passive: false });
+  }
+
+  function handleTouchStart(e) {
+    e.preventDefault();
+    if (!state.isRunning) return;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    for (const touch of e.changedTouches) {
+      const x = touch.clientX;
+      const y = touch.clientY;
+      if (y < screenH * 0.14) continue; // ignore taps in top HUD zone
+      if (x < screenW * 0.5 && !joystick.active) {
+        joystick.active = true;
+        joystick.touchId = touch.identifier;
+        joystick.baseX = x; joystick.baseY = y;
+        joystick.knobX = x; joystick.knobY = y;
+        joystick.dx = 0;    joystick.dy = 0;
+      } else if (x >= screenW * 0.5 && !aimTouch.active) {
+        aimTouch.active  = true;
+        aimTouch.touchId = touch.identifier;
+        aimTouch.x = x;  aimTouch.y = y;
+        mouse.x = x;     mouse.y = y;
+      }
+    }
+  }
+
+  function handleTouchMove(e) {
+    e.preventDefault();
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystick.touchId) {
+        const dx = touch.clientX - joystick.baseX;
+        const dy = touch.clientY - joystick.baseY;
+        const dist  = Math.hypot(dx, dy);
+        const angle = Math.atan2(dy, dx);
+        const capped = Math.min(dist, joystick.maxRadius);
+        joystick.knobX = joystick.baseX + Math.cos(angle) * capped;
+        joystick.knobY = joystick.baseY + Math.sin(angle) * capped;
+        joystick.dx = dist > 10 ? Math.cos(angle) : 0;
+        joystick.dy = dist > 10 ? Math.sin(angle) : 0;
+      } else if (touch.identifier === aimTouch.touchId) {
+        aimTouch.x = touch.clientX;
+        aimTouch.y = touch.clientY;
+        mouse.x    = touch.clientX;
+        mouse.y    = touch.clientY;
+      }
+    }
+  }
+
+  function handleTouchEnd(e) {
+    e.preventDefault();
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === joystick.touchId) {
+        joystick.active  = false;
+        joystick.touchId = null;
+        joystick.dx = 0; joystick.dy = 0;
+      } else if (touch.identifier === aimTouch.touchId) {
+        aimTouch.active  = false;
+        aimTouch.touchId = null;
+      }
+    }
+  }
+
   /** Coordinate scaling **/
   let devicePixelRatioCached = Math.max(window.devicePixelRatio || 1, 1);
   function resizeCanvas() {
@@ -638,19 +729,29 @@
         }
       }
       
-      const isSprinting = keys.has("shift");
-      const speed = this.moveSpeed * (isSprinting ? this.sprintMultiplier : 1);
-      let mx = 0, my = 0;
-      if (keys.has("w")) my -= 1;
-      if (keys.has("s")) my += 1;
-      if (keys.has("a")) mx -= 1;
-      if (keys.has("d")) mx += 1;
-      if (mx !== 0 || my !== 0) {
-        const n = normalize(mx, my);
-        this.vx = n.x * speed;
-        this.vy = n.y * speed;
+      if (isMobile) {
+        // Joystick movement
+        if (joystick.active && (joystick.dx !== 0 || joystick.dy !== 0)) {
+          this.vx = joystick.dx * this.moveSpeed;
+          this.vy = joystick.dy * this.moveSpeed;
+        } else {
+          this.vx = 0; this.vy = 0;
+        }
       } else {
-        this.vx = 0; this.vy = 0;
+        const isSprinting = keys.has("shift");
+        const speed = this.moveSpeed * (isSprinting ? this.sprintMultiplier : 1);
+        let mx = 0, my = 0;
+        if (keys.has("w")) my -= 1;
+        if (keys.has("s")) my += 1;
+        if (keys.has("a")) mx -= 1;
+        if (keys.has("d")) mx += 1;
+        if (mx !== 0 || my !== 0) {
+          const n = normalize(mx, my);
+          this.vx = n.x * speed;
+          this.vy = n.y * speed;
+        } else {
+          this.vx = 0; this.vy = 0;
+        }
       }
 
       // Integrate
@@ -1098,6 +1199,128 @@
   /** Player instance **/
   const player = new Player(window.innerWidth / 2, window.innerHeight / 2);
 
+  /** Mobile joystick & aim overlay rendered on canvas **/
+  function drawMobileControls() {
+    const w = canvas.width / devicePixelRatioCached;
+    const h = canvas.height / devicePixelRatioCached;
+    const t = performance.now() * 0.005;
+
+    ctx.save();
+
+    // ── LEFT ZONE: joystick ──────────────────────────────────────
+    if (!joystick.active) {
+      // Static hint circle
+      const hx = w * 0.18, hy = h * 0.80;
+      ctx.globalAlpha = 0.13;
+      ctx.strokeStyle = '#2dd4bf';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath(); ctx.arc(hx, hy, 52, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.07;
+      ctx.fillStyle = '#2dd4bf';
+      ctx.beginPath(); ctx.arc(hx, hy, 52, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('MOVE', hx, hy);
+    } else {
+      // Base ring
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = '#2dd4bf';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(joystick.baseX, joystick.baseY, joystick.maxRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Base fill
+      ctx.globalAlpha = 0.09;
+      ctx.fillStyle = '#2dd4bf';
+      ctx.beginPath();
+      ctx.arc(joystick.baseX, joystick.baseY, joystick.maxRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Direction line
+      if (joystick.dx !== 0 || joystick.dy !== 0) {
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = '#2dd4bf';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(joystick.baseX, joystick.baseY);
+        ctx.lineTo(joystick.knobX, joystick.knobY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Knob
+      const kg = ctx.createRadialGradient(joystick.knobX - 8, joystick.knobY - 8, 3, joystick.knobX, joystick.knobY, 30);
+      kg.addColorStop(0, 'rgba(255,255,255,0.95)');
+      kg.addColorStop(1, 'rgba(45,212,191,0.70)');
+      ctx.globalAlpha = 0.88;
+      ctx.fillStyle = kg;
+      ctx.shadowColor = '#2dd4bf';
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.arc(joystick.knobX, joystick.knobY, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    // ── RIGHT ZONE: aim ──────────────────────────────────────────
+    if (!aimTouch.active) {
+      const hx = w * 0.82, hy = h * 0.80;
+      ctx.globalAlpha = 0.13;
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath(); ctx.arc(hx, hy, 52, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.07;
+      ctx.fillStyle = '#f472b6';
+      ctx.beginPath(); ctx.arc(hx, hy, 52, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('AIM', hx, hy);
+    } else {
+      // Pulsing aim ring at finger position
+      const pulse = (Math.sin(t * 6) + 1) * 0.5;
+      ctx.globalAlpha = 0.55 + pulse * 0.4;
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(aimTouch.x, aimTouch.y, 18 + pulse * 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.18 + pulse * 0.14;
+      ctx.fillStyle = '#f472b6';
+      ctx.beginPath();
+      ctx.arc(aimTouch.x, aimTouch.y, 18, 0, Math.PI * 2);
+      ctx.fill();
+      // Cross-hair lines
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 1.5;
+      const cr = 28;
+      ctx.beginPath();
+      ctx.moveTo(aimTouch.x - cr, aimTouch.y);
+      ctx.lineTo(aimTouch.x - 8,  aimTouch.y);
+      ctx.moveTo(aimTouch.x + 8,  aimTouch.y);
+      ctx.lineTo(aimTouch.x + cr, aimTouch.y);
+      ctx.moveTo(aimTouch.x, aimTouch.y - cr);
+      ctx.lineTo(aimTouch.x, aimTouch.y - 8);
+      ctx.moveTo(aimTouch.x, aimTouch.y + 8);
+      ctx.lineTo(aimTouch.x, aimTouch.y + cr);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
   /** Spawning and difficulty **/
   function enemyStatsForWave(wave) {
     // Pick an enemy type: runner (fast, 1 HP), biter (high damage), brute (high HP)
@@ -1430,6 +1653,9 @@
     
     ctx.restore();
     
+    // Draw mobile joystick/aim overlay (on top of game, under flash)
+    if (isMobile) drawMobileControls();
+
     // Draw flash effect
     if (state.flashEffect > 0) {
       ctx.globalAlpha = state.flashEffect;
@@ -1506,6 +1732,9 @@
     state.screenShake = 0;
     state.flashEffect = 0;
     state.lastLowHealthWarning = 0;
+    // Reset mobile controls
+    joystick.active = false; joystick.dx = 0; joystick.dy = 0; joystick.touchId = null;
+    aimTouch.active = false; aimTouch.touchId = null;
     entities.projectiles.length = 0;
     entities.enemies.length = 0;
     entities.powerups.length = 0;
